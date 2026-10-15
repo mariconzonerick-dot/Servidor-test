@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RGC Chat Online</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0f172a; color: white; margin: 0; padding: 15px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+    .box { background: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
+    input, button { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; }
+    button { background: #38bdf8; color: #0f172a; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    #chatBox { flex: 1; background: #0f172a; border-radius: 8px; padding: 10px; overflow-y: auto; margin-bottom: 10px; display: flex; flex-direction: column; gap: 5px; }
+    .msg { background: #1e293b; padding: 8px; border-radius: 5px; font-size: 14px; }
+    .sys { color: #38bdf8; font-style: italic; }
+    .badge { background: #eab308; color: #0f172a; padding: 2px 5px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <div id="connectScreen" class="box">
+    <h2>URL de tu Servidor Render</h2>
+    <input type="text" id="serverUrl" placeholder="https://servidor-test-xxxx.onrender.com">
+    <h2>Tu Nickname</h2>
+    <input type="text" id="nicknameInput" placeholder="Ej: DrooPy..">
+    <button id="btnConnect">Entrar al Chat</button>
+  </div>
+
+  <div id="chatScreen" class="hidden" style="display:flex; flex-direction:column; height:100%;">
+    <div class="box" style="display:flex; justify-content:space-between; align-items:center;">
+      <div><strong id="userLabel" style="color:#38bdf8;"></strong> <span class="badge">Lv. 12000</span></div>
+      <span style="font-size:12px; color:#4ade80;">🟢 En Línea</span>
+    </div>
+    <div id="chatBox"></div>
+    <form id="sendForm" style="display:flex; gap:5px;">
+      <input type="text" id="msgInput" placeholder="Escribe un mensaje..." style="margin:0;">
+      <button type="submit" style="width: auto; margin:0;">Enviar</button>
+    </form>
+  </div>
+
+<script>
+  let socket = null;
+  const btnConnect = document.getElementById("btnConnect");
+  const serverUrl = document.getElementById("serverUrl");
+  const nicknameInput = document.getElementById("nicknameInput");
+  const connectScreen = document.getElementById("connectScreen");
+  const chatScreen = document.getElementById("chatScreen");
+  const chatBox = document.getElementById("chatBox");
+  const sendForm = document.getElementById("sendForm");
+  const msgInput = document.getElementById("msgInput");
+  const userLabel = document.getElementById("userLabel");
+
+  btnConnect.addEventListener("click", () => {
+    const url = serverUrl.value.trim();
+    const nick = nicknameInput.value.trim();
+    if (!url || !nick) { alert("Completa ambos campos"); return; }
+    
+    socket = io(url);
+    socket.on("connect", () => {
+      connectScreen.classList.add("hidden");
+      chatScreen.classList.remove("hidden");
+      userLabel.textContent = nick;
+      socket.emit("join", { nickname: nick, rank: 12000 });
+    });
+
+    socket.on("chatMessage", (data) => {
+      const div = document.createElement("div");
+      div.className = "msg";
+      if (data.system) {
+        div.className = "msg sys";
+        div.textContent = `[Sistema]: ${data.text}`;
+      } else {
+        div.innerHTML = `<strong style="color:#38bdf8;">${data.user}</strong> <span class="badge">Lv.${data.rank || 1}</span>: ${data.text}`;
+      }
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+  });
+
+  sendForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const txt = msgInput.value.trim();
+    if (txt && socket) { socket.emit("sendMessage", txt); msgInput.value = ""; }
+  });
+</script>
+</body>
+</html>
