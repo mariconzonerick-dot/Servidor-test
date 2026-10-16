@@ -3,63 +3,116 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RGC Chat Online</title>
+  <title>RGC - Ranked Gaming Client</title>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #0f172a; color: white; margin: 0; padding: 15px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
-    .box { background: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
-    input, button { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; }
-    button { background: #38bdf8; color: #0f172a; font-weight: bold; cursor: pointer; margin-top: 10px; }
-    #chatBox { flex: 1; background: #0f172a; border-radius: 8px; padding: 10px; overflow-y: auto; margin-bottom: 10px; display: flex; flex-direction: column; gap: 5px; }
-    .msg { background: #1e293b; padding: 8px; border-radius: 5px; font-size: 14px; }
-    .sys { color: #38bdf8; font-style: italic; }
-    .badge { background: #eab308; color: #0f172a; padding: 2px 5px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-    .hidden { display: none; }
+    body { font-family: Tahoma, Arial, sans-serif; background: #0b0f19; color: #cbd5e1; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; overflow: hidden; }
+    
+    /* Estilo de la ventana de inicio de sesión tipo cliente */
+    .login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5, 7, 12, 0.9); display: flex; justify-content: center; align-items: center; z-index: 100; }
+    .login-box { background: #131b2e; border: 1px solid #1e293b; border-top: 3px solid #38bdf8; padding: 25px; border-radius: 6px; width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; }
+    .login-box h2 { color: #f8fafc; margin-top: 0; font-size: 18px; margin-bottom: 15px; }
+    .login-box input { width: 100%; padding: 10px; margin-bottom: 12px; background: #0b0f19; border: 1px solid #334155; color: white; border-radius: 4px; box-sizing: border-box; }
+    .login-box button { width: 100%; padding: 10px; background: #0284c7; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    .login-box button:hover { background: #0369a1; }
+
+    /* Barra superior estilo cliente RGC */
+    .client-header { background: #162032; border-bottom: 1px solid #1e293b; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+    .client-title { color: #38bdf8; font-weight: bold; display: flex; align-items: center; gap: 6px; }
+    
+    /* Pestañas de Canales */
+    .channels-bar { background: #0f172a; display: flex; border-bottom: 1px solid #1e293b; padding: 0 10px; }
+    .channel-tab { padding: 6px 15px; font-size: 12px; background: #131b2e; border-top: 2px solid #38bdf8; color: white; cursor: pointer; margin-top: 4px; border-radius: 4px 4px 0 0; }
+
+    /* Cuerpo Principal del Lobby */
+    .lobby-body { display: flex; flex: 1; overflow: hidden; padding: 6px; gap: 6px; background: #0b0f19; }
+    
+    /* Chat Central */
+    .chat-container { flex: 3; display: flex; flex-direction: column; background: #111827; border: 1px solid #1f2937; border-radius: 4px; padding: 6px; }
+    #chatBox { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 13px; padding-right: 4px; }
+    
+    /* Panel Lateral de Usuarios */
+    .users-container { flex: 1; background: #111827; border: 1px solid #1f2937; border-radius: 4px; padding: 6px; display: flex; flex-direction: column; min-width: 170px; }
+    .users-header { font-size: 11px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #1f2937; padding-bottom: 4px; margin-bottom: 4px; text-transform: uppercase; }
+    #usersList { flex: 1; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 3px; }
+
+    /* Entradas de texto y botones de chat */
+    .chat-input-area { display: flex; gap: 6px; margin-top: 6px; }
+    .chat-input-area input { flex: 1; padding: 8px; background: #0b0f19; border: 1px solid #334155; color: white; border-radius: 3px; font-size: 13px; }
+    .chat-input-area button { padding: 0 15px; background: #0284c7; color: white; border: none; border-radius: 3px; font-weight: bold; cursor: pointer; }
+
+    /* Mensajes y rangos visuales */
+    .msg { padding: 3px 6px; border-radius: 2px; word-break: break-word; }
+    .sys { color: #38bdf8; font-style: italic; background: rgba(56, 189, 248, 0.05); }
+    .badge-owner { background: #dc2626; color: white; padding: 1px 4px; border-radius: 3px; font-size: 10px; font-weight: bold; }
+    .badge-user { background: #334155; color: #cbd5e1; padding: 1px 4px; border-radius: 3px; font-size: 10px; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
-  <div id="connectScreen" class="box">
-    <h2>Tu Nickname</h2>
-    <input type="text" id="nicknameInput" placeholder="Ej: DrooPy.. o _Chr0nos_">
-    <button id="btnConnect">Entrar al Chat</button>
+  <!-- Recuadro Estilo Cliente para Entrar -->
+  <div id="loginOverlay" class="login-overlay">
+    <div class="login-box">
+      <h2>RGC Platform Login</h2>
+      <input type="text" id="nicknameInput" placeholder="Introduce tu Nickname...">
+      <button id="btnLogin">Conectar al Servidor</button>
+    </div>
   </div>
 
-  <div id="chatScreen" class="hidden" style="display:flex; flex-direction:column; height:100%;">
-    <div class="box" style="display:flex; justify-content:space-between; align-items:center;">
-      <div><strong id="userLabel" style="color:#38bdf8;"></strong> <span class="badge">Lv. 12000</span></div>
-      <span style="font-size:12px; color:#4ade80;">🟢 En Línea</span>
+  <!-- Interfaz de la Plataforma RGC -->
+  <div id="clientInterface" class="hidden" style="display:flex; flex-direction:column; height:100%;">
+    <div class="client-header">
+      <div class="client-title">🎮 RGC Client v1.0</div>
+      <div>Conectado como: <strong id="userLabel" style="color:#38bdf8;"></strong> [<span id="rankHeader" class="badge-user">User</span>]</div>
     </div>
-    <div id="chatBox"></div>
-    <form id="sendForm" style="display:flex; gap:5px;">
-      <input type="text" id="msgInput" placeholder="Escribe un mensaje..." style="margin:0;">
-      <button type="submit" style="width: auto; margin:0;">Enviar</button>
-    </form>
+
+    <div class="channels-bar">
+      <div class="channel-tab">💬 # Sala Principal - Global</div>
+    </div>
+
+    <div class="lobby-body">
+      <!-- Chat principal -->
+      <div class="chat-container">
+        <div id="chatBox"></div>
+        <form id="sendForm" class="chat-input-area">
+          <input type="text" id="msgInput" placeholder="Escribe un mensaje o /setrank [usuario] [rango]...">
+          <button type="submit">Enviar</button>
+        </form>
+      </div>
+
+      <!-- Lista lateral de usuarios -->
+      <div class="users-container">
+        <div class="users-header">Usuarios en Canal (1)</div>
+        <div id="usersList"></div>
+      </div>
+    </div>
   </div>
 
 <script>
   let socket = null;
-  const btnConnect = document.getElementById("btnConnect");
+  const loginOverlay = document.getElementById("loginOverlay");
+  const clientInterface = document.getElementById("clientInterface");
   const nicknameInput = document.getElementById("nicknameInput");
-  const connectScreen = document.getElementById("connectScreen");
-  const chatScreen = document.getElementById("chatScreen");
+  const btnLogin = document.getElementById("btnLogin");
   const chatBox = document.getElementById("chatBox");
+  const usersList = document.getElementById("usersList");
   const sendForm = document.getElementById("sendForm");
   const msgInput = document.getElementById("msgInput");
   const userLabel = document.getElementById("userLabel");
+  const rankHeader = document.getElementById("rankHeader");
 
-  btnConnect.addEventListener("click", () => {
+  btnLogin.addEventListener("click", () => {
     const nick = nicknameInput.value.trim();
-    if (!nick) { alert("Ingresa tu Nickname"); return; }
-    
-    // Se conecta automáticamente al mismo servidor actual de Render
+    if (!nick) { alert("Por favor ingresa un Nickname válido."); return; }
+
     socket = io();
 
     socket.on("connect", () => {
-      connectScreen.classList.add("hidden");
-      chatScreen.classList.remove("hidden");
+      loginOverlay.classList.add("hidden");
+      clientInterface.classList.remove("hidden");
       userLabel.textContent = nick;
-      socket.emit("join", { nickname: nick, rank: 12000 });
+      socket.emit("join", { nickname: nick });
     });
 
     socket.on("chatMessage", (data) => {
@@ -69,17 +122,36 @@
         div.className = "msg sys";
         div.textContent = `[Sistema]: ${data.text}`;
       } else {
-        div.innerHTML = `<strong style="color:#38bdf8;">${data.user}</strong> <span class="badge">Lv.${data.rank || 1}</span>: ${data.text}`;
+        let badgeClass = data.globalRank.includes("Owner") ? "badge-owner" : "badge-user";
+        div.innerHTML = `<span class="${badgeClass}">[${data.globalRank}]</span> <strong style="color:#38bdf8;">${data.user}</strong>: ${data.text}`;
       }
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    socket.on("updateUsers", (users) => {
+      usersList.innerHTML = "";
+      users.forEach(u => {
+        const userDiv = document.createElement("div");
+        let badgeIcon = u.globalRank.includes("Owner") ? "🔴" : "🟢";
+        userDiv.textContent = `${badgeIcon} ${u.nickname} (${u.globalRank})`;
+        usersList.appendChild(userDiv);
+
+        if (u.nickname.toLowerCase() === userLabel.textContent.toLowerCase()) {
+          rankHeader.textContent = u.globalRank;
+          rankHeader.className = u.globalRank.includes("Owner") ? "badge-owner" : "badge-user";
+        }
+      });
     });
   });
 
   sendForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const txt = msgInput.value.trim();
-    if (txt && socket) { socket.emit("sendMessage", txt); msgInput.value = ""; }
+    if (txt && socket) {
+      socket.emit("sendMessage", txt);
+      msgInput.value = "";
+    }
   });
 </script>
 </body>
