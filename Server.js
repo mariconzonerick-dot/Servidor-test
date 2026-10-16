@@ -19,8 +19,9 @@ io.on('connection', (socket) => {
 
   socket.on('join', (data) => {
     let nickname = data.nickname.trim();
-    let globalRank = "Usuario";
+    let globalRank = "User";
 
+    // Solo tú tienes el rango de Creador por defecto
     if (nickname.toLowerCase() === CREATOR_NICK.toLowerCase()) {
       globalRank = "Owner [Creador]";
     }
@@ -32,8 +33,8 @@ io.on('connection', (socket) => {
 
     io.emit('updateUsers', Object.values(connectedUsers));
     io.emit('chatMessage', {
-      user: 'Plataforma RGC',
-      text: `${nickname} se ha conectado [Rango: ${globalRank}].`,
+      user: 'RGC System',
+      text: `${nickname} se ha conectado al canal principal [${globalRank}].`,
       system: true
     });
   });
@@ -42,6 +43,7 @@ io.on('connection', (socket) => {
     const user = connectedUsers[socket.id];
     if (!user) return;
 
+    // Comando exclusivo del Owner: /setrank [usuario] [rango]
     if (messageText.startsWith('/setrank') && user.globalRank.includes("Owner")) {
       const parts = messageText.split(' ');
       const targetNick = parts[1];
@@ -52,8 +54,8 @@ io.on('connection', (socket) => {
           connectedUsers[id].globalRank = newRank;
           io.emit('updateUsers', Object.values(connectedUsers));
           io.emit('chatMessage', {
-            user: 'Plataforma RGC',
-            text: `⚠️ [SISTEMA]: El Creador asignó el rango global "${newRank}" a ${targetNick}.`,
+            user: 'RGC System',
+            text: `⚠️ [ADMIN]: El Creador asignó el rango global "${newRank}" a ${targetNick}.`,
             system: true
           });
           return;
@@ -73,8 +75,8 @@ io.on('connection', (socket) => {
     const user = connectedUsers[socket.id];
     if (user) {
       io.emit('chatMessage', {
-        user: 'Plataforma RGC',
-        text: `${user.nickname} ha salido de la plataforma.`,
+        user: 'RGC System',
+        text: `${user.nickname} ha abandonado la plataforma.`,
         system: true
       });
       delete connectedUsers[socket.id];
